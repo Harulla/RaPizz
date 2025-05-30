@@ -9,8 +9,8 @@ import javax.swing.*;
 public class LoginPanel extends JPanel {
     
     private static final String DB_URL = "jdbc:mysql://localhost:3306/rapizz";
-    private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "toto123";
+    private static final String DB_USER = "Likian";
+    private static final String DB_PASSWORD = "1234";
     
     private JTextField loginField;
     private JPasswordField passwordField;
@@ -191,7 +191,7 @@ public class LoginPanel extends JPanel {
     }
     
     private boolean authenticateUser(String login, String password) throws SQLException {
-        String sql = "SELECT id_compte, nom_client, prenom_client, adresse FROM Compte WHERE login = ? AND mot_de_passe = ?";
+        String sql = "SELECT id_compte, nom_client, prenom_client, adresse, role FROM Compte WHERE login = ? AND mot_de_passe = ?";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -205,9 +205,10 @@ public class LoginPanel extends JPanel {
                     String nom = rs.getString("nom_client");
                     String prenom = rs.getString("prenom_client");
                     String adresse = rs.getString("adresse");
+                    String role = rs.getString("role");
                     
                     // Créer la session
-                    model.UserSession.createSession(idCompte, login, nom, prenom, adresse);
+                    model.UserSession.createSession(idCompte, login, nom, prenom, adresse, role);
                     return true;
                 }
             }

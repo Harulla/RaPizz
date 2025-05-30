@@ -8,6 +8,7 @@ public class UserSession {
     private String nom;
     private String prenom;
     private String adresse;
+    private String role;
 
     private UserSession(int idCompte, String login, String nom, String prenom, String adresse) {
         this.idCompte = idCompte;
@@ -17,8 +18,9 @@ public class UserSession {
         this.adresse = adresse;
     }
 
-    public static void createSession(int idCompte, String login, String nom, String prenom, String adresse) {
+    public static void createSession(int idCompte, String login, String nom, String prenom, String adresse, String role) {
         instance = new UserSession(idCompte, login, nom, prenom, adresse);
+        instance.role = role;
     }
 
     public static UserSession getInstance() {
@@ -47,5 +49,13 @@ public class UserSession {
     
     public String getAdresse() {
         return adresse;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }

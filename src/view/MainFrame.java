@@ -56,7 +56,7 @@ public class MainFrame extends JFrame {
             // Créer la page d'accueil si elle n'existe pas encore
             if (pageAccueil == null) {
                 model.UserSession session = model.UserSession.getInstance();
-                pageAccueil = new PageAccueil(session.getIdCompte());
+                pageAccueil = new PageAccueil(session.getIdCompte(), session.getRole());
 
                 // Créer un panel wrapper pour la page d'accueil avec un bouton de déconnexion
                 JPanel homeWrapper = new JPanel(new BorderLayout());

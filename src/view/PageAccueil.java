@@ -1,23 +1,12 @@
 package view;
 
-import java.awt.BorderLayout;
-import java.awt.EventQueue;
-import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
 
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -28,9 +17,11 @@ import java.util.*;
 public class PageAccueil extends JFrame {
 
     private static final String DB_URL = "jdbc:mysql://localhost:3306/rapizz";
-    private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "toto123";
+    private static final String DB_USER = "Likian";
+    private static final String DB_PASSWORD = "1234";
     private int idCompteConnecte;
+    private String role;
+    private JPanel rightPanel;
     
     // Commandes en cours (en train de se faire livrer par un livreur)
     private JPanel createLivraisonsPanel(int idCompteConnecte) {
@@ -42,7 +33,6 @@ public class PageAccueil extends JFrame {
         textArea.setEditable(false);
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
-        	// REQUETE A CHANGER POUR SADAPTER AU CHAMP STATUT
         	String sql = "SELECT l.id_livraison, l.statut, l.heure_depart, c.id_commande, cl.nom_client, cl.prenom_client, v.nom AS vehicule, lv.nom AS livreur " +
         		    "FROM Livraison l " +
         		    "JOIN Commande c ON l.id_commande = c.id_commande " +
@@ -94,7 +84,6 @@ public class PageAccueil extends JFrame {
         textArea.setEditable(false);
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
-        	//REQUETE A CHANGER POUR S'ADAPTER AU CHAMP STATUT
         	String sql = "SELECT c.id_commande, c.date_commande, c.est_gratuite, cl.nom_client, cl.prenom_client, t.Nom AS taille " +
         		    "FROM Commande c " +
         		    "JOIN Compte cl ON c.id_compte = cl.id_compte " +
@@ -150,7 +139,7 @@ public class PageAccueil extends JFrame {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         // Panel de droite pour les livraisons et commandes
-        JPanel rightPanel = new JPanel();
+        rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setPreferredSize(new Dimension(400, 600));
         rightPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -169,12 +158,73 @@ public class PageAccueil extends JFrame {
         mainContent.add(titleLabel, BorderLayout.NORTH);
         mainContent.add(scrollPane, BorderLayout.CENTER);
         mainContent.add(rightPanel, BorderLayout.EAST);
-        
+
+        // Bouton "Mon compte" visible pour les clients
+        if ("client".equals(role)) {
+            JButton btnMonCompte = new JButton("Mon compte");
+            btnMonCompte.addActionListener(e -> {
+                JFrame compteFrame = new JFrame("Mon compte");
+                compteFrame.setSize(400, 250);
+                compteFrame.setLocationRelativeTo(null);
+                JPanel panel = new JPanel(new GridLayout(0,1));
+                try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                    PreparedStatement ps = conn.prepareStatement("SELECT nom_client, prenom_client, adresse, solde FROM Compte WHERE id_compte = ?");
+                    ps.setInt(1, idCompteConnecte);
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.next()) {
+                        panel.add(new JLabel("Nom : " + rs.getString("nom_client")));
+                        panel.add(new JLabel("Prénom : " + rs.getString("prenom_client")));
+                        panel.add(new JLabel("Adresse : " + rs.getString("adresse")));
+                        panel.add(new JLabel("Solde : " + rs.getDouble("solde") + " €"));
+                    }
+                } catch (SQLException ex) {
+                    panel.add(new JLabel("Erreur lors du chargement du compte."));
+                }
+                compteFrame.add(panel);
+                compteFrame.setVisible(true);
+            });
+            mainContent.add(btnMonCompte, BorderLayout.SOUTH);
+        }
+
+        // Bouton "Statistiques" visible pour l'admin
+        if ("admin".equals(role)) {
+            JButton btnStats = new JButton("Statistiques");
+            btnStats.addActionListener(e -> {
+                JFrame statsFrame = new JFrame("Statistiques");
+                statsFrame.setSize(400, 300);
+                statsFrame.setLocationRelativeTo(null);
+                JPanel panel = new JPanel(new GridLayout(0,1));
+                try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                    ResultSet rs = conn.createStatement().executeQuery(
+                        "SELECT nom_client, prenom_client, COUNT(*) as nb FROM Commande c JOIN Compte co ON c.id_compte=co.id_compte GROUP BY c.id_compte ORDER BY nb DESC LIMIT 1");
+                    if (rs.next()) panel.add(new JLabel("Meilleur client : " + rs.getString("prenom_client") + " " + rs.getString("nom_client") + " (" + rs.getInt("nb") + " commandes)"));
+                    rs = conn.createStatement().executeQuery(
+                        "SELECT p.nom, COUNT(*) as nb FROM Commande_Pizza cp JOIN Pizza p ON cp.id_pizza=p.id_pizza GROUP BY cp.id_pizza ORDER BY nb DESC LIMIT 1");
+                    if (rs.next()) panel.add(new JLabel("Pizza la plus demandée : " + rs.getString("nom") + " (" + rs.getInt("nb") + " fois)"));
+                } catch (SQLException ex) {
+                    panel.add(new JLabel("Erreur SQL"));
+                }
+                statsFrame.add(panel);
+                statsFrame.setVisible(true);
+            });
+            mainContent.add(btnStats, BorderLayout.NORTH);
+        }
+
+        // Bouton "Interface livreur" visible pour les livreurs
+        if ("livreur".equals(role)) {
+            JButton btnLivreur = new JButton("Interface livreur");
+            btnLivreur.addActionListener(e -> {
+                new PageLivreur().setVisible(true);
+            });
+            mainContent.add(btnLivreur, BorderLayout.WEST);
+        }
+
         return mainContent;
     }
     
-    public PageAccueil(int idCompteConnecte) throws ClassNotFoundException {
+    public PageAccueil(int idCompteConnecte, String role) throws ClassNotFoundException {
         this.idCompteConnecte = idCompteConnecte;
+        this.role = role;
         setTitle("RaPizz - Page d'Accueil");
         setSize(1200, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -272,6 +322,97 @@ public class PageAccueil extends JFrame {
                 commanderButton.setBackground(Color.RED);
                 commanderButton.setForeground(Color.WHITE);
 
+                commanderButton.addActionListener(e-> {
+                    Object[] tailles = mapTailles.keySet().toArray();
+                    String tailleChoisie = (String) JOptionPane.showInputDialog(
+                        null,
+                        "Choisissez la taille de la pizza :",
+                        "Taille",
+                        JOptionPane.QUESTION_MESSAGE,
+                        null,
+                        tailles,
+                        tailles[0]
+                    );
+                    if (tailleChoisie == null) return;
+                    
+                    double facteur = mapTailles.get(tailleChoisie);
+                    double prix = mapPrixPizza.get(idPizza) * facteur;
+
+                try (Connection conn2 = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                    conn2.setAutoCommit(false);
+
+                    PreparedStatement psSolde = conn2.prepareStatement("SELECT solde FROM Compte WHERE id_compte = ?");
+                    psSolde.setInt(1, idCompteConnecte);
+                    ResultSet rsSolde = psSolde.executeQuery();
+                    if (!rsSolde.next() || rsSolde.getDouble("solde") < prix) {
+                        JOptionPane.showMessageDialog(null, "Solde insuffisant !");
+                        return;
+                    }
+
+                    String idCommande = "CMD" + System.currentTimeMillis();
+
+                    PreparedStatement psTaille = conn2.prepareStatement("SELECT id_taille FROM Taille WHERE Nom = ?");
+                    psTaille.setString(1, tailleChoisie);
+                    ResultSet rsTaille = psTaille.executeQuery();
+                    int idTaille = 1;
+                    if (rsTaille.next()) idTaille = rsTaille.getInt("id_taille");
+
+                    PreparedStatement psCmd = conn2.prepareStatement(
+                        "INSERT INTO Commande (id_commande, date_commande, est_gratuite, id_compte, id_taille) VALUES (?, NOW(), 0, ?, ?)"
+                    );
+                    psCmd.setString(1, idCommande);
+                    psCmd.setInt(2, idCompteConnecte);
+                    psCmd.setInt(3, idTaille);
+                    psCmd.executeUpdate();
+
+                    PreparedStatement psCmdPizza = conn2.prepareStatement(
+                        "INSERT INTO Commande_Pizza (id_commande, id_pizza) VALUES (?, ?)"
+                    );
+                    psCmdPizza.setString(1, idCommande);
+                    psCmdPizza.setInt(2, idPizza);
+                    psCmdPizza.executeUpdate();
+
+                    PreparedStatement psMajSolde = conn2.prepareStatement(
+                        "UPDATE Compte SET solde = solde - ? WHERE id_compte = ?"
+                    );
+                    psMajSolde.setDouble(1, prix);
+                    psMajSolde.setInt(2, idCompteConnecte);
+                    psMajSolde.executeUpdate();
+
+                    PreparedStatement psLivreur = conn2.prepareStatement(
+                    "SELECT id_livreur FROM Livreur ORDER BY RAND() LIMIT 1"
+                    );
+                    ResultSet rsLivreur = psLivreur.executeQuery();
+                    int idLivreur = 1;
+                    if (rsLivreur.next()) idLivreur = rsLivreur.getInt("id_livreur");
+
+                    PreparedStatement psVehicule = conn2.prepareStatement(
+                        "SELECT id_vehicule FROM Vehicule ORDER BY RAND() LIMIT 1"
+                    );
+                    ResultSet rsVehicule = psVehicule.executeQuery();
+                    int idVehicule = 1;
+                    if (rsVehicule.next()) idVehicule = rsVehicule.getInt("id_vehicule");
+
+                    int idStatut = 1;
+
+                    PreparedStatement psLivraison = conn2.prepareStatement(
+                        "INSERT INTO Livraison (statut, heure_depart, id_commande, id_livreur, id_vehicule, id_statut) VALUES (?, NOW(), ?, ?, ?, ?)"
+                    );
+                    psLivraison.setString(1, "En cours");
+                    psLivraison.setString(2, idCommande);
+                    psLivraison.setInt(3, idLivreur);
+                    psLivraison.setInt(4, idVehicule);
+                    psLivraison.setInt(5, idStatut);
+                    psLivraison.executeUpdate();
+                    conn2.commit();
+                    JOptionPane.showMessageDialog(null, "Commande passée avec succès !");
+                    rafraichirPanels();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(null, "Erreur lors de la commande !");
+                }
+            });
+
                 infoPanel.add(nomLabel);
                 infoPanel.add(prixLabel);
                 infoPanel.add(ingredientsLabel);
@@ -287,5 +428,16 @@ public class PageAccueil extends JFrame {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public void rafraichirPanels() {
+        rightPanel.removeAll();
+        JPanel livraisonsPanel = createLivraisonsPanel(idCompteConnecte);
+        JPanel commandesPanel = createCommandesPanel(idCompteConnecte);
+        rightPanel.add(livraisonsPanel);
+        rightPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        rightPanel.add(commandesPanel);
+        rightPanel.revalidate();
+        rightPanel.repaint();
     }
 }

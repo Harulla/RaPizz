@@ -29,9 +29,11 @@ public class PageAccueil extends JFrame {
 
     private static final String DB_URL = "jdbc:mysql://localhost:3306/rapizz";
     private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "";
+    private static final String DB_PASSWORD = "toto123";
+    private int idCompteConnecte;
     
-    private JPanel createLivraisonsPanel() {
+    // Commandes en cours (en train de se faire livrer par un livreur)
+    private JPanel createLivraisonsPanel(int idCompteConnecte) {
         JPanel panel = new JPanel();
         panel.setLayout(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Livraisons en cours"));
@@ -40,25 +42,28 @@ public class PageAccueil extends JFrame {
         textArea.setEditable(false);
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
-            String sql = "SELECT l.id_livraison, l.statut, l.heure_depart, c.id_commande, cl.nom_client, cl.prenom_client, v.nom AS vehicule, lv.nom AS livreur " +
-                         "FROM Livraison l " +
-                         "JOIN Commande c ON l.id_commande = c.id_commande " +
-                         "JOIN Compte cl ON c.id_compte = cl.id_compte " +
-                         "LEFT JOIN Vehicule v ON l.id_vehicule = v.id_vehicule " +
-                         "LEFT JOIN Livreur lv ON l.id_livreur = lv.id_livreur " +
-                         "WHERE l.heure_arrivee IS NULL"; // Livraisons en cours
+        	// REQUETE A CHANGER POUR SADAPTER AU CHAMP STATUT
+        	String sql = "SELECT l.id_livraison, l.statut, l.heure_depart, c.id_commande, cl.nom_client, cl.prenom_client, v.nom AS vehicule, lv.nom AS livreur " +
+        		    "FROM Livraison l " +
+        		    "JOIN Commande c ON l.id_commande = c.id_commande " +
+        		    "JOIN Compte cl ON c.id_compte = cl.id_compte " +
+        		    "LEFT JOIN Vehicule v ON l.id_vehicule = v.id_vehicule " +
+        		    "LEFT JOIN Livreur lv ON l.id_livreur = lv.id_livreur " +
+        		    "WHERE l.heure_arrivee IS NULL AND c.id_compte = ?";
+        	
 
             PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, idCompteConnecte);
             ResultSet rs = pstmt.executeQuery();
 
             StringBuilder sb = new StringBuilder();
             while (rs.next()) {
                 sb.append("Livraison #").append(rs.getInt("id_livraison"))
                   .append(" | Statut: ").append(rs.getString("statut"))
-                  .append(" | DÈpart: ").append(rs.getString("heure_depart"))
+                  .append(" | D√©part: ").append(rs.getString("heure_depart"))
                   .append("\nCommande: ").append(rs.getString("id_commande"))
                   .append(" | Client: ").append(rs.getString("prenom_client")).append(" ").append(rs.getString("nom_client"))
-                  .append(" | VÈhicule: ").append(rs.getString("vehicule") == null ? "N/A" : rs.getString("vehicule"))
+                  .append(" | V√©hicule: ").append(rs.getString("vehicule") == null ? "N/A" : rs.getString("vehicule"))
                   .append(" | Livreur: ").append(rs.getString("livreur") == null ? "N/A" : rs.getString("livreur"))
                   .append("\n\n");
             }
@@ -79,24 +84,29 @@ public class PageAccueil extends JFrame {
         return panel;
     }
 
-    private JPanel createCommandesPanel() {
+    // Commandes d√©j√† pass√©s (historique)
+    private JPanel createCommandesPanel(int idCompteConnecte) {
         JPanel panel = new JPanel();
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Commandes passÈes"));
+        panel.setBorder(BorderFactory.createTitledBorder("Commandes pass√©es"));
 
         JTextArea textArea = new JTextArea();
         textArea.setEditable(false);
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
-            String sql = "SELECT c.id_commande, c.date_commande, c.est_gratuite, cl.nom_client, cl.prenom_client, t.Nom AS taille " +
-                         "FROM Commande c " +
-                         "JOIN Compte cl ON c.id_compte = cl.id_compte " +
-                         "LEFT JOIN Taille t ON c.id_taille = t.id_taille " +
-                         "ORDER BY c.date_commande DESC";
+        	//REQUETE A CHANGER POUR S'ADAPTER AU CHAMP STATUT
+        	String sql = "SELECT c.id_commande, c.date_commande, c.est_gratuite, cl.nom_client, cl.prenom_client, t.Nom AS taille " +
+        		    "FROM Commande c " +
+        		    "JOIN Compte cl ON c.id_compte = cl.id_compte " +
+        		    "LEFT JOIN Taille t ON c.id_taille = t.id_taille " +
+        		    "WHERE c.id_compte = ? " +
+        		    "ORDER BY c.date_commande DESC";
 
             PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, idCompteConnecte);
             ResultSet rs = pstmt.executeQuery();
 
+            //un string builder permet de concat√©ner plein de string entre elles
             StringBuilder sb = new StringBuilder();
             while (rs.next()) {
                 sb.append("Commande #").append(rs.getString("id_commande"))
@@ -108,7 +118,7 @@ public class PageAccueil extends JFrame {
             }
 
             if (sb.length() == 0) {
-                sb.append("Aucune commande passÈe.");
+                sb.append("Aucune commande pass√©e.");
             }
 
             textArea.setText(sb.toString());
@@ -123,14 +133,12 @@ public class PageAccueil extends JFrame {
         return panel;
     }
 
-    
-    public PageAccueil() throws ClassNotFoundException {
-        setTitle("RaPizz - Page d'Accueil");
-        setSize(1200, 800);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
+    // M√©thode pour cr√©er le contenu principal de la page d'accueil qui sera ensuite ajout√© dans le frame
+    public JPanel createMainContent() throws ClassNotFoundException {
+        JPanel mainContent = new JPanel(new BorderLayout());
+        
         // Titre de la page
-        JLabel titleLabel = new JLabel("Bienvenue chez RaPizz !", JLabel.CENTER);
+        JLabel titleLabel = new JLabel("Nos D√©licieuses Pizzas", JLabel.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
         titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
 
@@ -147,26 +155,31 @@ public class PageAccueil extends JFrame {
         rightPanel.setPreferredSize(new Dimension(400, 600));
         rightPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Panel des livraisons en cours
-        JPanel livraisonsPanel = createLivraisonsPanel();
-        
-        // Panel des commandes passÈes
-        JPanel commandesPanel = createCommandesPanel();
+        JPanel livraisonsPanel = createLivraisonsPanel(idCompteConnecte);
+        JPanel commandesPanel = createCommandesPanel(idCompteConnecte);
 
         rightPanel.add(livraisonsPanel);
         rightPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         rightPanel.add(commandesPanel);
 
-        // Charger les pizzas et crÈer les cartes
+        // Charger les pizzas et cr√©er les cartes
         chargerPizzasDepuisBDD(pizzaListPanel);
 
-        // Layout final
-        setLayout(new BorderLayout());
-        add(titleLabel, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
-        add(rightPanel, BorderLayout.EAST);
-
-        setVisible(true);
+        // Layout final (TOUT)
+        mainContent.add(titleLabel, BorderLayout.NORTH);
+        mainContent.add(scrollPane, BorderLayout.CENTER);
+        mainContent.add(rightPanel, BorderLayout.EAST);
+        
+        return mainContent;
+    }
+    
+    public PageAccueil(int idCompteConnecte) throws ClassNotFoundException {
+        this.idCompteConnecte = idCompteConnecte;
+        setTitle("RaPizz - Page d'Accueil");
+        setSize(1200, 800);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        add(createMainContent(), BorderLayout.CENTER);
+        setVisible(false);
     }
 
     private void chargerPizzasDepuisBDD(JPanel pizzaListPanel) throws ClassNotFoundException {
@@ -194,7 +207,7 @@ public class PageAccueil extends JFrame {
             PreparedStatement pstmt = conn.prepareStatement(sql);
             ResultSet rs = pstmt.executeQuery();
 
-            // Stocker les ingrÈdients par pizza
+            // Stocker les ingr√©dients par pizza
             HashMap<Integer, ArrayList<String>> mapIngredients = new HashMap<>();
             HashMap<Integer, String> mapNomPizza = new HashMap<>();
             HashMap<Integer, Double> mapPrixPizza = new HashMap<>();
@@ -211,7 +224,7 @@ public class PageAccueil extends JFrame {
                 mapIngredients.computeIfAbsent(idPizza, k -> new ArrayList<>()).add(nomIngredient);
             }
 
-            // CrÈer les cartes pour chaque pizza
+            // Cr√©er les cartes pour chaque pizza
             for (Integer idPizza : mapNomPizza.keySet()) {
                 JPanel cardPanel = new JPanel(new BorderLayout());
                 cardPanel.setPreferredSize(new Dimension(500, 300));
@@ -226,7 +239,7 @@ public class PageAccueil extends JFrame {
                     // Redimensionnement
                     Image scaledImage = image.getScaledInstance(300, 300, Image.SCALE_SMOOTH);
 
-                    // Appliquer ‡ un JLabel
+                    // Appliquer √† un JLabel
                     JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
                     cardPanel.add(imageLabel, BorderLayout.WEST);
                 } catch (IOException ex) {
@@ -241,22 +254,22 @@ public class PageAccueil extends JFrame {
                 JLabel nomLabel = new JLabel(mapNomPizza.get(idPizza));
                 nomLabel.setFont(new Font("Arial", Font.BOLD, 18));
 
-                // Construire dynamiquement la chaÓne des prix en fonction des tailles
+                // Construire dynamiquement la cha√Æne des prix en fonction des tailles
                 StringBuilder prixText = new StringBuilder();
-                prixText.append("Base: ").append(String.format("%.2f", mapPrixPizza.get(idPizza))).append("Ä");
+                prixText.append("Base: ").append(String.format("%.2f", mapPrixPizza.get(idPizza))).append("‚Ç¨");
                 
                 for (Map.Entry<String, Double> entry : mapTailles.entrySet()) {
                     String nomTaille = entry.getKey();
                     double facteur = entry.getValue();
                     double prixTaille = mapPrixPizza.get(idPizza) * facteur;
-                    prixText.append(" - ").append(nomTaille).append(": ").append(String.format("%.2f", prixTaille)).append("Ä");
+                    prixText.append(" - ").append(nomTaille).append(": ").append(String.format("%.2f", prixTaille)).append("‚Ç¨");
                 }
 
                 JLabel prixLabel = new JLabel(prixText.toString());
-                JLabel ingredientsLabel = new JLabel("<html>IngrÈdients: " + String.join(", ", mapIngredients.get(idPizza)) + "</html>");
+                JLabel ingredientsLabel = new JLabel("<html>Ingr√©dients: " + String.join(", ", mapIngredients.get(idPizza)) + "</html>");
 
                 JButton commanderButton = new JButton("Commander");
-                commanderButton.setBackground(Color.BLUE);
+                commanderButton.setBackground(Color.RED);
                 commanderButton.setForeground(Color.WHITE);
 
                 infoPanel.add(nomLabel);
@@ -274,15 +287,5 @@ public class PageAccueil extends JFrame {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            try {
-                new PageAccueil();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        });
     }
 }

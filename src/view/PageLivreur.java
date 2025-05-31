@@ -6,6 +6,9 @@ import java.sql.*;
 
 public class PageLivreur extends JFrame {
     private JPanel panel;
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/rapizz";
+    private static final String DB_USER = "root";
+    private static final String DB_PASSWORD = "";
     public PageLivreur() {
         setTitle("Interface Livreur");
         setSize(600, 400);
@@ -21,7 +24,7 @@ public class PageLivreur extends JFrame {
 
     private void rafraichirLivraisons() {
         panel.removeAll();
-        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/rapizz", "Likian", "1234")) {
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
             String sql = "SELECT l.id_livraison, l.statut, l.heure_depart, l.heure_arrivee, c.id_commande " +
                          "FROM Livraison l JOIN Commande c ON l.id_commande = c.id_commande WHERE l.statut != 'Livrée'";
             PreparedStatement ps = conn.prepareStatement(sql);
@@ -36,7 +39,7 @@ public class PageLivreur extends JFrame {
 
                 JButton livrerButton = new JButton("Livrer");
                 livrerButton.addActionListener(e -> {
-                    try (Connection conn2 = DriverManager.getConnection("jdbc:mysql://localhost:3306/rapizz", "Likian", "1234")) {
+                    try (Connection conn2 = DriverManager.getConnection(DB_URL,DB_USER, DB_PASSWORD)) {
                         PreparedStatement ps2 = conn2.prepareStatement(
                             "UPDATE Livraison SET heure_arrivee = NOW(), statut = 'Livrée' WHERE id_livraison = ?"
                         );

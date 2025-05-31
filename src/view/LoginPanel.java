@@ -9,8 +9,8 @@ import javax.swing.*;
 public class LoginPanel extends JPanel {
     
     private static final String DB_URL = "jdbc:mysql://localhost:3306/rapizz";
-    private static final String DB_USER = "Likian";
-    private static final String DB_PASSWORD = "1234";
+    private static final String DB_USER = "root";
+    private static final String DB_PASSWORD = "";
     
     private JTextField loginField;
     private JPasswordField passwordField;
